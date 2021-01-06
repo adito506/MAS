@@ -5,176 +5,209 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from seller import Seller
 from buyer import Buyer
+from house import House
 
 class Simulation(Buyer, Seller):
     
-    def __init__(self, population_seller, population_buyer,average_degree_seller, average_degree_buyer):
-        self.sellers = self.__generate_sellers(population_seller, population_buyer, average_degree_seller)
-        self.initial_honest_sellers = self.__choose_initial_honest_sellers()
-
-        self.buyers = self.__generate_buyers(population_seller, population_buyer, average_degree_buyer)
-        self.initial_simple_buyers = self.__choose_initial_simple_buyers()
-        super().__init__()
-
-    def __generate_sellers(self, population_seller, population_buyer, average_degree_seller):
-        rearange_edges = int(average_degree_seller*0.5)
-        self.network_seller = nx.barabasi_albert_graph(population_buyer, rearange_edges)#sellerの取引相手のnodeなのでbuyer
-        #num_sellers = int(population_seller)
-
-        sellers = [Seller() for id in range(population_seller)]#rangeで0~populationまでの数字をAgentに割り付ける
-        for index, focal_seller in enumerate(sellers):#enumerateでforループの中のリストやタプルにインデックス番号をつける
-            next_sellers_id = list(self.network_seller[index])
-            for nb_id in next_sellers_id:
-                focal_seller.next_sellers_id.append(nb_id)#appendで末尾に要素を追加
+    def __init__(self, population_buyer, population_seller, average_degree):
+        self.seller = self.__generate_seller(population_seller, population_buyer, average_degree)
+        self.initial_honest_seller = self.__choose_initial_honest_seller()
+        self.buyer = self.__generate_buyer(population_seller, population_buyer, average_degree)
+        self.initial_simple_buyer = self.__choose_initial_simple_buyer()
         
-        return sellers
 
-    def __generate_buyers(self, population_seller, population_buyer, average_degree_buyer):
-        rearange_edges = int(average_degree_buyer*0.5)
+    def __generate_seller(self, population_seller, population_buyer, average_degree):
+        rearange_edges = int(average_degree)
+        self.network_seller = nx.barabasi_albert_graph(population_buyer, rearange_edges)#sellerの取引相手のnodeなのでbuyer
+        self.network_opponent = nx.barabasi_albert_graph(population_seller, rearange_edges)#得点を比較する相手
+        
+        seller = [Seller() for id in range(population_seller)]#rangeで0~populationまでの数字をAgentに割り付ける
+        for index, focal_seller in enumerate(seller):#enumerateでforループの中のリストやタプルにインデックス番号をつける
+            next_buyer_id = list(self.network_seller[index])
+            opponent_id = list(self.network_opponent[index])
+            for nb_id in next_buyer_id:
+                focal_seller.next_buyer_id.append(nb_id)#appendで末尾に要素を追加
+                for opp_id in opponent_id:
+                    focal_seller.opponent_id.append(opp_id)
+        return seller
+
+    def __generate_buyer(self, population_seller, population_buyer, average_degree):
+        rearange_edges = int(average_degree)
         self.network_buyer = nx.barabasi_albert_graph(population_seller, rearange_edges)#buyerの取引相手のnodeなのでseller
-        #num_buyers = int(population_buyer)
+        self.network_opponent = nx.barabasi_albert_graph(population_buyer, rearange_edges)#得点を比較する相手
 
-        buyers = [Buyer() for id in range(population_buyer)]#rangeで0~populationまでの数字をAgentに割り付ける
-        for index, focal_buyer in enumerate(buyers):#enumerateでforループの中のリストやタプルにインデックス番号をつける
-            next_buyers_id = list(self.network_buyer[index])
-            for nb_id in next_buyers_id:
-                focal_buyer.next_buyers_id.append(nb_id)#appendで末尾に要素を追加
-        return buyers
+        buyer = [Buyer() for id in range(population_buyer)]#rangeで0~populationまでの数字をAgentに割り付ける
+        for index, focal_buyer in enumerate(buyer):#enumerateでforループの中のリストやタプルにインデックス番号をつける
+            next_seller_id = list(self.network_buyer[index])
+            opponent_id = list(self.network_opponent[index])
+            for nb_id in next_seller_id:
+                focal_buyer.next_seller_id.append(nb_id)#appendで末尾に要素を追加
+                for opp_id in opponent_id:
+                    focal_buyer.opponent_id.append(opp_id)
+        return buyer
 
-    def __choose_initial_honest_sellers(self):
-        population = len(self.sellers)
-        self.initial_honest_sellers = rnd.sample(range(population), k = int(population/2))
+    def __choose_initial_honest_seller(self):
+        population = len(self.seller)
+        initial_honest_seller = rnd.sample(range(population), k = int(population/2))
+        return initial_honest_seller
 
 
-    def __choose_initial_simple_buyers(self):
-        population = len(self.buyers)
-        self.initial_simple_buyers = rnd.sample(range(population), k = int(population/2))
+    def __choose_initial_simple_buyer(self):
+        population = len(self.buyer)
+        initial_simple_buyer = rnd.sample(range(population), k = int(population/2))
+        return initial_simple_buyer
+        #元のコードではself.initial_simple_buyerと定義していたが、Noneになるため、書き方を変えた
 
-    def __initialize_strategy_sellers(self):
+    def __initialize_strategy_seller(self):
         """Initialize the strategy of agents"""
-        for index, focal_seller in enumerate(self.sellers):
-            if index in self.initial_honest_sellers:
+        for index, focal_seller in enumerate(self.seller):
+            if index in self.initial_honest_seller:
                 focal_seller.strategy = "H"
             else:
                 focal_seller.strategy = "L"
 
-    def __initialize_strategy_buyers(self):
+    def __initialize_strategy_buyer(self):
         """Initialize the strategy of agents"""
-        for index, focal_buyer in enumerate(self.buyers):
-            if index in self.initial_simple_buyers:
+        for index, focal_buyer in enumerate(self.buyer):
+            if index in self.initial_simple_buyer:
                 focal_buyer.strategy = "Buy"
             else:
                 focal_buyer.strategy = "NotBuy"
+                #self.buyerがnoneになっている
 
-    def __count_payoff_seller(self):
-        """Count the payoff based on payoff matrix"""
-        for focal_seller in self.sellers:
+    def __count_payoff_seller(self, Pr, r, h_q):
+        """利得表に基づいて売主が獲得する利得を計算"""
+        R = 0
+        S = -r*h_q
+        T = h_q*Pr
+        P = -r*h_q
+
+        for focal_seller in self.seller:
             focal_seller.point = 0.0
-            for nb_id in focal_seller.neighbors_id:
-                neighbor = self.sellers[nb_id]
+            for nb_id in focal_seller.next_buyer_id:
+                neighbor = self.seller[nb_id]
                 if focal_seller.strategy == "L" and neighbor.strategy == "Buy":    
-                    focal_seller.point += Dg
+                    focal_seller.point += T
                 elif focal_seller.strategy == "L" and neighbor.strategy == "NotBuy":   
-                    focal_seller.point += -1/self.asset_price
+                    focal_seller.point += P
                 elif focal_seller.strategy == "H" and neighbor.strategy == "Buy":   
-                    focal_seller.point += 0
+                    focal_seller.point += R
                 elif focal_seller.strategy == "H" and neighbor.strategy == "NotBuy":  
-                    focal_seller.point += -1/self.asset_price
+                    focal_seller.point += S
     
-    def __count_payoff_buyer(self):
-        """Count the payoff based on payoff matrix"""
-        for focal_buyer in self.buyers:
+    def __count_payoff_buyer(self, Pr, r, h_q):
+        """利得表に基づいて買主が獲得する利得を計算"""
+        R = 0
+        S = -r*h_q
+        T = -h_q*Pr
+        P = -r*h_q
+
+        for focal_buyer in self.buyer:
             focal_buyer.point = 0.0
-            for nb_id in focal_buyer.neighbors_id:
-                neighbor = self.buyers[nb_id]
+            for nb_id in focal_buyer.next_seller_id:
+                neighbor = self.buyer[nb_id]
                 if focal_buyer.strategy == "Buy" and neighbor.strategy == "L":    
-                    focal_buyer.point += -Dg
+                    focal_buyer.point += T
                 elif focal_buyer.strategy == "NotBuy" and neighbor.strategy == "L":   
-                    focal_buyer.point += -1/neighbor.asset_price
+                    focal_buyer.point += P
                 elif focal_buyer.strategy == "Buy" and neighbor.strategy == "H":   
-                    focal_buyer.point += 0
+                    focal_buyer.point += R
                 elif focal_buyer.strategy == "NotBuy" and neighbor.strategy == "H":  
-                    focal_buyer.point += -1/neighbor.asset_price
+                    focal_buyer.point += S
 
 
     def __update_strategy_seller(self):
-        for focal_seller in self.sellers:
-            focal_seller.decide_next_strategy(self.sellers)
+        for focal_seller in self.seller:
+            focal_seller.decide_next_strategy(self.seller)
         
-        for focal_seller in self.sellers:
+        for focal_seller in self.seller:
             focal_seller.update_strategy()
 
     def __update_strategy_buyer(self):
-        for focal_buyer in self.buyers:
-            focal_buyer.decide_next_strategy(self.buyers)
+        for focal_buyer in self.buyer:
+            focal_buyer.decide_next_strategy(self.buyer)
         
-        for focal_buyer in self.buyers:
+        for focal_buyer in self.buyer:
             focal_buyer.update_strategy()
 
     def __count_fc_seller(self):
         """Calculate the fraction of cooperative agents"""
         
-        fc_seller = len([seller for seller in self.sellers if seller.strategy == "H"])/len(self.sellers)
+        fc_seller = len([seller for seller in self.seller if seller.strategy == "H"])/len(self.seller)
     
         return fc_seller
 
     def __count_fc_buyer(self):
         """Calculate the fraction of cooperative agents"""
         
-        fc_buyer = len([buyer for buyer in self.buyers if buyer.strategy == "Buy"])/len(self.buyers)
+        fc_buyer = len([buyer for buyer in self.buyer if buyer.strategy == "Buy"])/len(self.buyer)
     
         return fc_buyer
 
-    def __play_game(self, episode, Dg):
+    def __house_quality(self):
+        h_q = 100
+        return h_q
+
+    def __play_game(self, episode, Pr, r, h_q):
         """Continue games until fc gets converged"""
         tmax = 3000
 
-        self.__initialize_strategy_sellers()
+        self.__initialize_strategy_seller()
         initial_fc_seller = self.__count_fc_seller()
         fc_hist_seller = [initial_fc_seller]
         
 
-        self.__initialize_strategy_buyers()
+        self.__initialize_strategy_buyer()
         initial_fc_buyer = self.__count_fc_buyer()
         fc_hist_buyer = [initial_fc_buyer]
 
 
-        print(f"Episode:{episode}, Dg:{Dg:.1f}, Time: 0, Fc_S:{initial_fc_seller:.3f}, Fc_B:{initial_fc_buyer:.3f}")
+        print(f"Episode:{episode}, Time: 0, Pr:{Pr:.1f}, r:{r:.2f}, Fc_S:{initial_fc_seller:.3f}, Fc_B:{initial_fc_buyer:.3f}")
         # result = pd.DataFrame({'Time': [0], 'Fc': [initial_fc]})
 
         for t in range(1, tmax+1):
-            self.__count_payoff_seller(Dg)
+            self.__count_payoff_seller(Pr, r, h_q)
             self.__update_strategy_seller()
-            self.__update_strategy_buyer()
             fc_s = self.__count_fc_seller()
             fc_hist_seller.append(fc_s)
-            print(f"Episode:{episode}, Dg:{Dg:.1f}, Time:{t}, Fc_S:{fc_s:.3f}")
+            self.__count_payoff_buyer(Pr, r, h_q)
+            self.__update_strategy_buyer()
+            fc_b = self.__count_fc_buyer()
+            fc_hist_buyer.append(fc_b)
+            print(f"Episode:{episode}, Time:{t}, Pr:{Pr:.1f}, r:{r:.2f}, Fc_S:{fc_s:.3f}, Fc_B:{fc_b:.3f}")
             # new_result = pd.DataFrame([[t, fc]], columns = ['Time', 'Fc'])
             # result = result.append(new_result)
 
             # Convergence conditions
-            if fc == 0 or fc == 1:
-                fc_converged = fc
-                comment = "Fc(0 or 1"
+            if fc_s == 0 or fc_s == 1 or fc_b == 0 or fc_b == 1:
+                fc_converged = fc_s
+                fc_sold = fc_b
+                comment = "Fc_S(0 or 1"
                 break
 
-            if t >= 100 and np.absolute(np.mean(fc_hist_seller[t-100:t-1]) - fc)/fc < 0.001:
+            if t >= 100 and np.absolute(np.mean(fc_hist_seller[t-100:t-1]) - fc_s)/fc_s < 0.001:
                 fc_converged = np.mean(fc_hist_seller[t-99:t])
-                comment = "Fc(converged)"
+                fc_sold = np.mean(fc_hist_buyer[t-99:t])
+                comment = "Fc_S(converged)"
+                break
+
+            if t >= 100 and np.absolute(np.mean(fc_hist_buyer[t-100:t-1]) - fc_b)/fc_b < 0.001:
+                fc_converged = np.mean(fc_hist_seller[t-99:t])
+                fc_sold = np.mean(fc_hist_buyer[t-99:t])
+                comment = "Fc_B(converged)"
                 break
 
             if t == tmax:
                 fc_converged = np.mean(fc_hist_seller[t-99:t])
+                fc_sold = np.mean(fc_hist_buyer[t-99:t])
                 comment = "Fc(final timestep)"
                 break
 
-        print(f"Dg:{Dg:.1f}, Time:{t}, {comment}:{fc_converged:.3f}")
-        # result.to_csv(f"time_evolution_Dg_{Dg:.1f}_Dr_{Dr:.1f}.csv")
-
-        return fc_converged
+        print(f"Pr:{Pr:.1f}, r:{r:.1f}, Time:{t}, {comment}:{fc_converged:.3f}:{fc_sold:.3f}")
+        return fc_converged, fc_sold
 
     def __take_snapshot(self, timestep):
-        for index, focal_seller in enumerate(self.sellers):
+        for index, focal_seller in enumerate(self.seller):
                 if focal_seller.strategy == "H":
                     self.network.nodes[index]["strategy"] = "H"
                 else:
@@ -198,18 +231,17 @@ class Simulation(Buyer, Seller):
         plt.close()
 
     def one_episode(self, episode):
-        """Run one episode"""
+        """全パラメータ領域でplay_gameを実行し、計算結果をCSVに書き出す"""
 
-        result = pd.DataFrame({'Dg': [], 'Fc_S': []})
-        self.__choose_initial_honest_sellers()
+        result = pd.DataFrame({'Pr': [], 'r': [], 'Fc_S': [], 'Fc_B': []})
+        self.__choose_initial_honest_seller()
+        self.__choose_initial_simple_buyer()
 
-        for Dg in np.arange(0, 1.1, 0.1):
-            fc_converged = self.__play_game(episode, Dg)
-            new_result = pd.DataFrame([[format(Dg, '.1f'), fc_converged]], columns = ['Dg', 'Fc_S'])
-            result = result.append(new_result)
+        for Pr in np.arange(0, 1.1, 0.1):
+            for r in np.arange(0.01, 0.11, 0.01):
+                h_q = self.__house_quality()
+                fc_converged = self.__play_game(episode, Pr, r, h_q)
+                new_result = pd.DataFrame([[format(Pr, '.1f'), format(r, '.2f'), fc_converged[0],fc_converged[1]]], columns = ['Pr', 'r', 'Fc_S', 'Fc_B'])
+                result = result.append(new_result)
         
         result.to_csv(f"phase_diagram{episode}.csv")
-
-# print(Simulation.__mro__)
-# s = Simulation(100,100,4)
-# print(s.__play_game)
