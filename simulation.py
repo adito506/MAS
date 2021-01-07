@@ -5,11 +5,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from seller import Seller
 from buyer import Buyer
-from house import House
 
-class Simulation(Buyer, Seller):
+class Simulation(Seller):
     
-    def __init__(self, population_buyer, population_seller, average_degree):
+    def __init__(self, population_seller, population_buyer, average_degree):
         self.seller = self.__generate_seller(population_seller, population_buyer, average_degree)
         self.initial_honest_seller = self.__choose_initial_honest_seller()
         self.buyer = self.__generate_buyer(population_seller, population_buyer, average_degree)
