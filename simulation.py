@@ -18,31 +18,31 @@ class Simulation(Seller):
     def __generate_seller(self, population_seller, population_buyer, average_degree):
         rearange_edges = int(average_degree)
         self.network_seller = nx.barabasi_albert_graph(population_buyer, rearange_edges)#sellerの取引相手のnodeなのでbuyer
-        self.network_opponent = nx.barabasi_albert_graph(population_seller, rearange_edges)#得点を比較する相手
+        # self.network_opponent = nx.barabasi_albert_graph(population_seller, rearange_edges)#得点を比較する相手
         
         seller = [Seller() for id in range(population_seller)]#rangeで0~populationまでの数字をAgentに割り付ける
         for index, focal_seller in enumerate(seller):#enumerateでforループの中のリストやタプルにインデックス番号をつける
             next_buyer_id = list(self.network_seller[index])
-            opponent_id = list(self.network_opponent[index])
+            # opponent_id = list(self.network_opponent[index])
             for nb_id in next_buyer_id:
                 focal_seller.next_buyer_id.append(nb_id)#appendで末尾に要素を追加
-                for opp_id in opponent_id:
-                    focal_seller.opponent_id.append(opp_id)
+                # for opp_id in opponent_id:
+                #     focal_seller.opponent_id.append(opp_id)
         return seller
 
     def __generate_buyer(self, population_seller, population_buyer, average_degree):
         rearange_edges = int(average_degree)
         self.network_buyer = nx.barabasi_albert_graph(population_seller, rearange_edges)#buyerの取引相手のnodeなのでseller
-        self.network_opponent = nx.barabasi_albert_graph(population_buyer, rearange_edges)#得点を比較する相手
+        # self.network_opponent = nx.barabasi_albert_graph(population_buyer, rearange_edges)#得点を比較する相手
 
         buyer = [Buyer() for id in range(population_buyer)]#rangeで0~populationまでの数字をAgentに割り付ける
         for index, focal_buyer in enumerate(buyer):#enumerateでforループの中のリストやタプルにインデックス番号をつける
             next_seller_id = list(self.network_buyer[index])
-            opponent_id = list(self.network_opponent[index])
+            # opponent_id = list(self.network_opponent[index])
             for nb_id in next_seller_id:
                 focal_buyer.next_seller_id.append(nb_id)#appendで末尾に要素を追加
-                for opp_id in opponent_id:
-                    focal_buyer.opponent_id.append(opp_id)
+                # for opp_id in opponent_id:
+                #     focal_buyer.opponent_id.append(opp_id)
         return buyer
 
     def __choose_initial_honest_seller(self):
