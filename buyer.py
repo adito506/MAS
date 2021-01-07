@@ -13,7 +13,7 @@ class Buyer:
 
         
     def decide_next_strategy(self, buyer):
-        opp_id = rnd.choice(self.opponent_id)   # Choose opponent from neighbors
+        opp_id = rnd.choice(self.next_seller_id)   # Choose opponent from neighbors
         opp = buyer[opp_id]
 
         if opp.strategy != self.strategy and rnd.random() < 1/(1 + np.exp((self.point - opp.point)/0.1)):

@@ -84,12 +84,12 @@ class Simulation(Seller):
         for focal_seller in self.seller:
             focal_seller.point = 0.0
             for nb_id in focal_seller.next_buyer_id:
-                neighbor = self.seller[nb_id]
-                if focal_seller.strategy == "L" and neighbor.strategy == "Buy":    
+                neighbor = self.buyer[nb_id]
+                if focal_seller.strategy == "L" and neighbor.strategy == "Buy":
                     focal_seller.point += T
-                elif focal_seller.strategy == "L" and neighbor.strategy == "NotBuy":   
+                elif focal_seller.strategy == "L" and neighbor.strategy == "NotBuy":
                     focal_seller.point += P
-                elif focal_seller.strategy == "H" and neighbor.strategy == "Buy":   
+                elif focal_seller.strategy == "H" and neighbor.strategy == "Buy":
                     focal_seller.point += R
                 elif focal_seller.strategy == "H" and neighbor.strategy == "NotBuy":  
                     focal_seller.point += S
@@ -104,7 +104,7 @@ class Simulation(Seller):
         for focal_buyer in self.buyer:
             focal_buyer.point = 0.0
             for nb_id in focal_buyer.next_seller_id:
-                neighbor = self.buyer[nb_id]
+                neighbor = self.seller[nb_id]
                 if focal_buyer.strategy == "Buy" and neighbor.strategy == "L":    
                     focal_buyer.point += T
                 elif focal_buyer.strategy == "NotBuy" and neighbor.strategy == "L":   
@@ -144,7 +144,7 @@ class Simulation(Seller):
         return fc_buyer
 
     def __house_quality(self):
-        h_q = 100
+        h_q = rnd.random()
         return h_q
 
     def __play_game(self, episode, Pr, r, h_q):
@@ -161,19 +161,19 @@ class Simulation(Seller):
         fc_hist_buyer = [initial_fc_buyer]
 
 
-        print(f"Episode:{episode}, Time: 0, Pr:{Pr:.1f}, r:{r:.2f}, Fc_S:{initial_fc_seller:.3f}, Fc_B:{initial_fc_buyer:.3f}")
+        print(f"Episode:{episode}, Time: 0, Pr:{Pr:.2f}, r:{r:.2f}, Fc_S:{initial_fc_seller:.3f}, Fc_B:{initial_fc_buyer:.3f}")
         # result = pd.DataFrame({'Time': [0], 'Fc': [initial_fc]})
 
         for t in range(1, tmax+1):
             self.__count_payoff_seller(Pr, r, h_q)
-            self.__update_strategy_seller()
-            fc_s = self.__count_fc_seller()
-            fc_hist_seller.append(fc_s)
             self.__count_payoff_buyer(Pr, r, h_q)
+            self.__update_strategy_seller()
             self.__update_strategy_buyer()
+            fc_s = self.__count_fc_seller()
             fc_b = self.__count_fc_buyer()
+            fc_hist_seller.append(fc_s)
             fc_hist_buyer.append(fc_b)
-            print(f"Episode:{episode}, Time:{t}, Pr:{Pr:.1f}, r:{r:.2f}, Fc_S:{fc_s:.3f}, Fc_B:{fc_b:.3f}")
+            print(f"Episode:{episode}, Time:{t}, Pr:{Pr:.2f}, r:{r:.2f}, Fc_S:{fc_s:.3f}, Fc_B:{fc_b:.3f}")
             # new_result = pd.DataFrame([[t, fc]], columns = ['Time', 'Fc'])
             # result = result.append(new_result)
 
@@ -202,7 +202,7 @@ class Simulation(Seller):
                 comment = "Fc(final timestep)"
                 break
 
-        print(f"Pr:{Pr:.1f}, r:{r:.1f}, Time:{t}, {comment}:{fc_converged:.3f}:{fc_sold:.3f}")
+        print(f"Pr:{Pr:.2f}, r:{r:.2f}, Time:{t}, {comment}:{fc_converged:.3f}:{fc_sold:.3f}")
         return fc_converged, fc_sold
 
     def __take_snapshot(self, timestep):
@@ -236,11 +236,11 @@ class Simulation(Seller):
         self.__choose_initial_honest_seller()
         self.__choose_initial_simple_buyer()
 
-        for Pr in np.arange(0, 1.1, 0.1):
+        for Pr in np.arange(0, 0.51, 0.05):
             for r in np.arange(0.01, 0.11, 0.01):
                 h_q = self.__house_quality()
                 fc_converged = self.__play_game(episode, Pr, r, h_q)
-                new_result = pd.DataFrame([[format(Pr, '.1f'), format(r, '.2f'), fc_converged[0],fc_converged[1]]], columns = ['Pr', 'r', 'Fc_S', 'Fc_B'])
+                new_result = pd.DataFrame([[format(Pr, '.2f'), format(r, '.2f'), fc_converged[0],fc_converged[1]]], columns = ['Pr', 'r', 'Fc_S', 'Fc_B'])
                 result = result.append(new_result)
         
         result.to_csv(f"phase_diagram{episode}.csv")

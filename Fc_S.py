@@ -23,6 +23,6 @@ for i in range(0, num_episode):
 
     
 plt.tight_layout()
-fig.suptitle('Fraction of Cooperation')
+fig.suptitle('Fraction of Honest Seller')
 fig.savefig('Pr-r-Fc_S_Diagram.png')
 

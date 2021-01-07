@@ -5,8 +5,8 @@ from simulation import Simulation
 import random
 
 def main():
-    population_seller = 200
-    population_buyer = 200
+    population_seller = 100
+    population_buyer = 100
     average_degree = 4          # Average degree of social network
     num_episode = 5             # Number of total episode in a single simulation for taking ensemble average
     #lamda = 0.6					# sellerの費率
